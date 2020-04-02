@@ -469,10 +469,6 @@ Local<Value> IsolateHandle::CreateSnapshot(ArrayRange script_handles, MaybeLocal
 		Isolate* isolate;
 #if V8_AT_LEAST(6, 8, 57)
 		isolate = Isolate::Allocate();
-//        shared_ptr<void> snapshot_blob;
-//	    size_t snapshot_blob_length = 0;
-//	    size_t memory_limit = 128;
-//        IsolateEnvironment::New();
 		PlatformDelegate::RegisterIsolate(isolate, delegate.get());
 		SnapshotCreator snapshot_creator{isolate};
 		isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10);
