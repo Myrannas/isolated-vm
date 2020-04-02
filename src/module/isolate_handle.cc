@@ -403,7 +403,6 @@ static StartupData SerializeInternalFieldsCallback(Local<Object> /*holder*/, int
 }
 
 Local<Value> IsolateHandle::CreateSnapshot(ArrayRange script_handles, MaybeLocal<String> warmup_handle) {
-
 	// Simple platform delegate and task queue
 	using TaskDeque = lockable_t<std::deque<std::unique_ptr<v8::Task>>>;
 	class SnapshotPlatformDelegate :
@@ -460,7 +459,7 @@ Local<Value> IsolateHandle::CreateSnapshot(ArrayRange script_handles, MaybeLocal
 	ExternalCopyString warmup_script;
 	if (!warmup_handle.IsEmpty()) {
 		warmup_script = ExternalCopyString{warmup_handle.ToLocalChecked().As<String>()};
-	}
+	}	
 
 	// Create the snapshot
 	StartupData snapshot {};
@@ -470,8 +469,13 @@ Local<Value> IsolateHandle::CreateSnapshot(ArrayRange script_handles, MaybeLocal
 		Isolate* isolate;
 #if V8_AT_LEAST(6, 8, 57)
 		isolate = Isolate::Allocate();
+//        shared_ptr<void> snapshot_blob;
+//	    size_t snapshot_blob_length = 0;
+//	    size_t memory_limit = 128;
+//        IsolateEnvironment::New();
 		PlatformDelegate::RegisterIsolate(isolate, delegate.get());
 		SnapshotCreator snapshot_creator{isolate};
+		isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10);
 #else
 		SnapshotCreator snapshot_creator;
 		isolate = snapshot_creator.GetIsolate();
@@ -496,7 +500,11 @@ Local<Value> IsolateHandle::CreateSnapshot(ArrayRange script_handles, MaybeLocal
 						Local<Script> compiled_script = RunWithAnnotatedErrors(
 							[&context, &source]() { return Unmaybe(ScriptCompiler::Compile(context, &source, ScriptCompiler::kNoCompileOptions)); }
 						);
-						Unmaybe(compiled_script->Run(context));
+                        RunWithAnnotatedErrors(
+                                [&context, &compiled_script]() { return
+                                    Unmaybe(compiled_script->Run(context));
+                                }
+                        );
 						unbound_script = compiled_script->GetUnboundScript();
 					}
 					if (warmup_script) {

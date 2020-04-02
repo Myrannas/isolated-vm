@@ -76,16 +76,35 @@ auto RunWithAnnotatedErrors(Function fn) {
 			v8::Local<v8::Context> context = isolate->GetCurrentContext();
 			v8::Local<v8::Value> error = try_catch.Exception();
 			v8::Local<v8::Message> message = try_catch.Message();
-			assert(error->IsObject());
 			int linenum = Unmaybe(message->GetLineNumber(context));
 			int start_column = Unmaybe(message->GetStartColumn(context));
+			
 			std::string decorator =
 				HandleCast<std::string>(message->GetScriptResourceName())+
 				":" + std::to_string(linenum) +
-				":" + std::to_string(start_column + 1);
+				":" + std::to_string(start_column + 1);			
+			
 			auto message_key = HandleCast<v8::Local<v8::String>>("message");
+			auto stack_key = HandleCast<v8::Local<v8::String>>("stack");
 			std::string message_str = HandleCast<std::string>(Unmaybe(error.As<v8::Object>()->Get(context, message_key)));
-			Unmaybe(error.As<v8::Object>()->Set(context, message_key, HandleCast<v8::Local<v8::String>>(message_str + " [" + decorator + "]")));
+
+			auto trace = message->GetStackTrace();	
+			std::string stack_trace = message_str + "\n";
+
+			for (int i = 0; i < trace->GetFrameCount(); i++) {
+				auto frame = trace->GetFrame(isolate, i);
+				stack_trace += "    at " 
+					+ HandleCast<std::string>(frame->GetFunctionName()) 
+					+ " (" 
+					+ HandleCast<std::string>(frame->GetScriptName())
+					+ ":"
+					+ std::to_string(frame->GetLineNumber()) 
+					+ ":" 
+					+ std::to_string(frame->GetColumn()) + ")\n";
+			}
+
+			Unmaybe(error.As<v8::Object>()->Set(context, message_key, HandleCast<v8::Local<v8::String>>(stack_trace)));
+//			Unmaybe(error.As<v8::Object>()->Set(context, stack_key, HandleCast<v8::Local<v8::String>>(stack_trace)));
 			isolate->ThrowException(error);
 			throw RuntimeError();
 		} catch (const RuntimeError& cc_error) {
